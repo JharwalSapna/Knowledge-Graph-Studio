@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        header {
+            background: white;
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 0;
+            min-height: 700px;
+        }
+
+        .panel {
+            background: #fafafa;
+            border-right: 1px solid var(--border);
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--text-main);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-main);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            margin-top: 12px;
+        }
+
+        button.secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        /* Modern Tabs */
+        .tabs {
+            display: flex;
+            background: #eef2ff;
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 32px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Visualization Area */
+        #network {
+            width: 100%;
+            height: 750px;
+            /* Fixed height to prevent infinite resizing loop */
+            background: #ffffff;
+            border-left: 1px solid var(--border);
+            cursor: grab;
+        }
+
+        #network:active {
+            cursor: grabbing;
+        }
+
+        /* Statistics */
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+        }
+
+        .stat-box {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-label {
+            color: var(--secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            color: var(--text-main);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* Messages */
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .message.success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .message.info {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* File Input Styling */
+        .file-input-wrapper {
+            position: relative;
+            margin-top: 8px;
+        }
+
+        .file-input-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            background: white;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--secondary);
+        }
+
+        .file-input-label:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+            color: var(--primary);
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Results */
+        .results-container {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding-right: 5px;
+        }
+
+        .result-item {
+            padding: 12px;
+            background: white;
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .result-item:hover {
+            border-color: var(--primary);
+            transform: translateX(2px);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            #network {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 Knowledge Graph Studio</h1>
+            <p>Build, visualize, and query entity relationships</p>
+        </header>
+
+        <div class="content">
+            <!-- Left Panel: Controls -->
+            <div class="panel">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('add')">Add</button>
+                    <button class="tab-btn" onclick="switchTab('upload')">Upload</button>
+                    <button class="tab-btn" onclick="switchTab('query')">Query</button>
+                </div>
+
+                <!-- Add Relationship Tab -->
+                <div id="add" class="tab-content active">
+                    <h2>Add Relationship</h2>
+                    <div id="addMessage"></div>
+
+                    <div class="form-group">
+                        <label for="entity1">Entity 1</label>
+                        <input type="text" id="entity1" placeholder="e.g., India">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="relationship">Relationship</label>
+                        <input type="text" id="relationship" placeholder="e.g., contains">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="entity2">Entity 2</label>
+                        <input type="text" id="entity2" placeholder="e.g., Maharashtra">
+                    </div>
+
+                    <button onclick="addRelationship()">Add Relationship</button>
+                    <button class="secondary" onclick="loadSampleData()">Load Sample Data</button>
+                </div>
+
+                <!-- Upload CSV Tab -->
+                <div id="upload" class="tab-content">
+                    <h2>Upload CSV</h2>
+                    <div id="uploadMessage"></div>
+
+                    <div class="form-group">
+                        <label>CSV Format: Entity1, Relationship, Entity2</label>
+                        <div class="file-input-wrapper">
+                            <label class="file-input-label" for="csvFile">
+                                📁 Click to select CSV file
+                            </label>
+                            <input type="file" id="csvFile" accept=".csv" onchange="uploadCSV()">
+                        </div>
+                    </div>
+
+                    <button onclick="uploadCSV()">Upload CSV</button>
+                    <button class="secondary" onclick="downloadTemplate()">Download Template</button>
+                </div>
+
+                <!-- Query Tab -->
+                <div id="query" class="tab-content">
+                    <h2>Query Graph</h2>
+                    <div id="queryMessage"></div>
+
+                    <div class="form-group">
+                        <label for="queryType">Query Type</label>
+                        <select id="queryType">
+                            <option value="entity">Find Entity</option>
+                            <option value="relationship">Find Relationship Type</option>
+                            <option value="path">Find Path</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="queryValue">Search Value</label>
+                        <input type="text" id="queryValue" placeholder="Enter entity or relationship">
+                    </div>
+
+                    <button onclick="queryGraph()">Search</button>
+
+                    <div id="resultsContainer" class="results-container" style="display: none;">
+                        <h3 style="margin-bottom: 10px; color: #667eea;">Results</h3>
+                        <div id="results"></div>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div style="margin-top: 30px;">
+                    <h2>Statistics</h2>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-label">Nodes</div>
+                            <div class="stat-value" id="nodeCount">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Edges</div>
+                            <div class="stat-value" id="edgeCount">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Density</div>
+                            <div class="stat-value" id="density">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Components</div>
+                            <div class="stat-value" id="components">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="secondary" onclick="clearGraph()" style="margin-top: 20px;">Clear Graph</button>
+            </div>
+
+            <!-- Right Panel: Graph Visualization -->
+            <div>
+                <div id="network"></div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Processing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let network = null;
+        let nodes = new vis.DataSet([]);
+        let edges = new vis.DataSet([]);
+
+        // Initialize network visualization
+        function initNetwork() {
+            const container = document.getElementById('network');
+            const data = { nodes: nodes, edges: edges };
+            const options = {
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 1000,
+                        updateInterval: 100,
+                        onlyDynamicEdges: false,
+                        fit: false
+                    },
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springConstant: 0.08,
+                        springLength: 100,
+                        damping: 0.4,
+                        avoidOverlap: 0
+                    },
+                    minVelocity: 0.75,
+                    adaptiveTimestep: true
+                },
+                layout: {
+                    improvedLayout: true
+                },
+                nodes: {
+                    shape: 'dot',
+                    scaling: {
+                        label: {
+                            enabled: true,
+                            min: 14,
+                            max: 30
+                        }
+                    },
+                    font: {
+                        size: 16,
+                        color: '#333'
+                    },
+                    color: {
+                        background: '#667eea',
+                        border: '#764ba2',
+                        highlight: {
+                            background: '#764ba2',
+                            border: '#667eea'
+                        }
+                    }
+                },
+                edges: {
+                    arrows: 'to',
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    font: {
+                        size: 12,
+                        align: 'middle'
+                    },
+                    color: {
+                        color: '#999',
+                        highlight: '#667eea'
+                    }
+                },
+                interaction: {
+                    navigationButtons: true,
+                    keyboard: true,
+                    zoomView: true,
+                    dragView: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // stabilizing -> fit
+            network.on("stabilizationIterationsDone", function () {
+                network.fit({
+                    animation: {
+                        duration: 1000,
+                        easingFunction: "easeInOutQuad"
+                    }
+                });
+                // Lock the graph to prevent any movement/breathing
+                setTimeout(() => {
+                    network.setOptions({ physics: { enabled: false } });
+                }, 1000);
+            });
+
+            // Re-enable physics only when dragging a node (optional, but good UX)
+            network.on("dragStart", function (params) {
+                if (params.nodes.length > 0) {
+                    network.setOptions({ physics: { enabled: true } });
+                }
+            });
+            network.on("dragEnd", function (params) {
+                // network.setOptions({ physics: { enabled: false } }); // Optional: Re-lock after drag
+            });
+        }
+
+        // Switch between tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Show message
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => { element.innerHTML = ''; }, 5000);
+        }
+
+        // Add single relationship
+        async function addRelationship() {
+            const entity1 = document.getElementById('entity1').value.trim();
+            const relationship = document.getElementById('relationship').value.trim();
+            const entity2 = document.getElementById('entity2').value.trim();
+
+            if (!entity1 || !relationship || !entity2) {
+                showMessage('addMessage', 'Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/relationships/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ entity1, relationship, entity2 })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('addMessage', 'Relationship added successfully!', 'success');
+                    document.getElementById('entity1').value = '';
+                    document.getElementById('relationship').value = '';
+                    document.getElementById('entity2').value = '';
+                    updateGraph(data.graph);
+                } else {
+                    showMessage('addMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('addMessage', 'Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Upload CSV
+        async function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            if (!fileInput.files.length) {
+                // If triggered by onchange but canceled (no file), just return
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            // Visual feedback
+            showMessage('uploadMessage', 'Uploading and processing...', 'info');
+            showLoading(true);
+
+            try {
+                const response = await fetch(`${API_BASE}/relationships/bulk`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const msg = `Successfully added ${data.added_count} relationships!` +
+                        (data.errors.length > 0 ? ` (${data.errors.length} errors)` : '');
+                    showMessage('uploadMessage', msg, 'success');
+                    fileInput.value = '';
+                    updateGraph(data.graph);
+                } else {
+                    showMessage('uploadMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('uploadMessage', 'Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Query graph
+        async function queryGraph() {
+            const queryType = document.getElementById('queryType').value;
+            const queryValue = document.getElementById('queryValue').value.trim();
+
+            if (!queryValue) {
+                showMessage('queryMessage', 'Please enter a search value', 'error');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: queryType, value: queryValue })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayResults(data.results, queryType);
+                    showMessage('queryMessage', `Found ${data.result_count} result(s)`, 'info');
+                } else {
+                    showMessage('queryMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('queryMessage', 'Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Display query results
+        function displayResults(results, queryType) {
+            const container = document.getElementById('resultsContainer');
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            if (queryType === 'path' && results.path) {
+                resultsDiv.innerHTML = `<div class="result-item"><strong>Path:</strong> ${results.path.join(' → ')}<br><strong>Length:</strong> ${results.length}</div>`;
+            } else if (Array.isArray(results)) {
+                results.forEach((result, idx) => {
+                    if (result.source && result.relationship && result.target) {
+                        resultsDiv.innerHTML += `<div class="result-item">${idx + 1}. <strong>${result.source}</strong> --<strong>${result.relationship}</strong>--> <strong>${result.target}</strong></div>`;
+                    }
+                });
+            }
+
+            container.style.display = results.length > 0 ? 'block' : 'none';
+        }
+
+        // Update graph visualization
+        function updateGraph(graphData) {
+            nodes.clear();
+            edges.clear();
+
+            graphData.nodes.forEach(node => {
+                nodes.add({
+                    id: node.id,
+                    label: node.label,
+                    title: node.label
+                });
+            });
+
+            graphData.edges.forEach(edge => {
+                edges.add({
+                    from: edge.source,
+                    to: edge.target,
+                    label: edge.label,
+                    title: edge.label
+                });
+            });
+
+            updateStats(graphData);
+        }
+
+        // Update statistics
+        async function updateStats(graphData) {
+            document.getElementById('nodeCount').textContent = graphData.node_count;
+            document.getElementById('edgeCount').textContent = graphData.edge_count;
+
+            try {
+                const response = await fetch(`${API_BASE}/graph/stats`);
+                const stats = await response.json();
+                document.getElementById('density').textContent = stats.density.toFixed(3);
+                document.getElementById('components').textContent = stats.num_components;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        // Load sample data
+        async function loadSampleData() {
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/relationships/bulk`, {
+                    method: 'POST',
+                    body: (() => {
+                        const formData = new FormData();
+                        const csvContent = `Entity1,Relationship,Entity2
+India,contains,Maharashtra
+India,contains,Karnataka
+India,contains,Tamil Nadu
+Maharashtra,contains,Mumbai
+Maharashtra,contains,Pune
+Karnataka,contains,Bangalore
+Karnataka,contains,Mysore
+Tamil Nadu,contains,Chennai
+Tamil Nadu,contains,Coimbatore
+Mumbai,capital_of,Maharashtra
+Bangalore,capital_of,Karnataka
+Chennai,capital_of,Tamil Nadu
+USA,contains,California
+USA,contains,Texas
+USA,contains,New York
+California,contains,San Francisco
+California,contains,Los Angeles
+Texas,contains,Houston
+Texas,contains,Dallas
+New York,contains,New York City
+San Francisco,capital_of,California
+Houston,capital_of,Texas`;
+                        formData.append('file', new File([csvContent], 'sample.csv', { type: 'text/csv' }));
+                        return formData;
+                    })()
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('addMessage', `Loaded ${data.added_count} sample relationships!`, 'success');
+                    updateGraph(data.graph);
+                }
+            } catch (error) {
+                showMessage('addMessage', 'Error loading sample data: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Download CSV template
+        function downloadTemplate() {
+            const csv = 'Entity1,Relationship,Entity2\nExample1,related_to,Example2\n';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'template.csv';
+            a.click();
+        }
+
+
+
+
+        // Clear graph
+        async function clearGraph() {
+            if (!confirm('Are you sure you want to clear the entire graph?')) return;
+
+            try {
+                showLoading(true);
+                const response = await fetch(`${API_BASE}/graph/clear`, { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    updateGraph(data.graph);
+                    showMessage('addMessage', 'Graph cleared', 'success');
+                }
+            } catch (error) {
+                showMessage('addMessage', 'Error: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Show/hide loading
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            initNetwork();
+            try {
+                const response = await fetch(`${API_BASE}/graph`);
+                const data = await response.json();
+                updateGraph(data);
+            } catch (error) {
+                console.error('Error loading graph:', error);
+            }
+        });
+    </script>
+</body>
+
+</html>

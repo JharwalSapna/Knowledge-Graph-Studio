@@ -1,0 +1,23 @@
+Entity1,Relationship,Entity2
+India,contains,Maharashtra
+India,contains,Karnataka
+India,contains,Tamil Nadu
+Maharashtra,contains,Mumbai
+Maharashtra,contains,Pune
+Karnataka,contains,Bangalore
+Karnataka,contains,Mysore
+Tamil Nadu,contains,Chennai
+Tamil Nadu,contains,Coimbatore
+Mumbai,capital_of,Maharashtra
+Bangalore,capital_of,Karnataka
+Chennai,capital_of,Tamil Nadu
+USA,contains,California
+USA,contains,Texas
+USA,contains,New York
+California,contains,San Francisco
+California,contains,Los Angeles
+Texas,contains,Houston
+Texas,contains,Dallas
+New York,contains,New York City
+San Francisco,capital_of,California
+Houston,capital_of,Texas
